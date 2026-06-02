@@ -8,7 +8,7 @@ This repo is a standalone Hermes plugin. It registers platform `op` so Hermes ca
 - reply over SMS with `POST https://api.op.inc/v1/messages`
 - use OP as a home/cron delivery target via `OP_HOME_CHANNEL`
 - run dashboardless OTP setup with `hermes op setup`
-- expose OP API tools (`op_send_sms`, `op_list_messages`, `op_get_message`, `op_get_number`)
+- expose OP API tools for SMS, numbers, webhooks, and API-key management
 - load the setup/troubleshooting skills `op:op-sms` and `op:op-api`
 
 ## Install
@@ -194,7 +194,20 @@ When `OP_API_KEY` is set, the plugin registers toolset `op`:
 | `op_send_sms` | Send a one-off SMS with optional idempotency key. |
 | `op_list_messages` | List inbound/outbound messages with pagination. |
 | `op_get_message` | Fetch a message and delivery status by id. |
-| `op_get_number` | Inspect the OP number attached to the API key. |
+| `op_get_number` | Inspect the OP number attached to the runtime API key. |
+| `op_list_my_numbers` | List OP numbers owned by the account. |
+| `op_list_available_numbers` | List numbers available to lease. |
+| `op_lease_number` | Lease an available OP number by `number_id`. |
+| `op_release_number` | Release a number; destructive and requires `confirm=true`. |
+| `op_list_api_keys` | List API keys, optionally filtered by `number_id`. |
+| `op_create_api_key` | Create an API key for a number. Returned secrets are sensitive. |
+| `op_revoke_api_key` | Revoke an API key; destructive and requires `confirm=true`. |
+| `op_list_webhooks` | List webhooks, optionally filtered by `number_id`. |
+| `op_create_webhook` | Create a webhook for a public Hermes OP webhook URL. |
+| `op_update_webhook` | Update a webhook URL, event list, or disabled flag. |
+| `op_test_webhook` | Trigger an OP test delivery to a webhook. |
+| `op_rotate_webhook_secret` | Rotate webhook HMAC secret; requires `confirm=true` and updating `OP_WEBHOOK_SECRET`. |
+| `op_delete_webhook` | Delete a webhook; destructive and requires `confirm=true`. |
 
 ## Plugin skills
 

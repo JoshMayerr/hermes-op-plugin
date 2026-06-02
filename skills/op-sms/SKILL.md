@@ -24,7 +24,7 @@ Preferred dashboardless setup:
 
 1. Install the plugin:
    ```bash
-   hermes plugins install owner/hermes-op-plugin --enable
+   hermes plugins install JoshMayerr/hermes-op-plugin --enable
    ```
 
 2. Run OP setup. The command sends an OTP to your phone, asks for the code, creates/uses an OP API key, optionally registers a webhook, and writes Hermes `.env` values:

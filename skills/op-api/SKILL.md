@@ -48,10 +48,36 @@ After setup, restart Hermes/gateway so env vars reload.
 
 The plugin registers toolset `op` when `OP_API_KEY` is set:
 
+### Runtime SMS tools
+
 - `op_send_sms` — send one SMS. Requires `to` and `body`; optional `idempotency_key`.
 - `op_list_messages` — list messages with optional `direction`, `cursor`, `limit`.
 - `op_get_message` — inspect one message/status by id.
-- `op_get_number` — inspect the OP number attached to the configured API key.
+- `op_get_number` — inspect the OP number attached to the configured runtime API key.
+
+### Number management tools
+
+- `op_list_my_numbers` — list numbers owned by the current OP account.
+- `op_list_available_numbers` — list numbers available to lease.
+- `op_lease_number` — lease an available number by `number_id`.
+- `op_release_number` — release a number; destructive and requires `confirm=true`.
+
+### API-key management tools
+
+- `op_list_api_keys` — list OP API keys, optionally filtered by `number_id`.
+- `op_create_api_key` — create an API key for a number. Treat returned key material as secret.
+- `op_revoke_api_key` — revoke an API key; destructive and requires `confirm=true`.
+
+### Webhook management tools
+
+- `op_list_webhooks` — list OP webhooks, optionally filtered by `number_id`.
+- `op_create_webhook` — create a webhook for a public HTTPS Hermes OP webhook URL.
+- `op_update_webhook` — update webhook URL, events, or disabled flag.
+- `op_test_webhook` — ask OP to send a test delivery to a webhook.
+- `op_rotate_webhook_secret` — rotate the webhook HMAC secret; requires `confirm=true` and then updating `OP_WEBHOOK_SECRET`.
+- `op_delete_webhook` — delete a webhook; destructive and requires `confirm=true`.
+
+For destructive tools, only pass `confirm=true` after the user explicitly asked for that destructive action.
 
 ## Operational Rules
 
