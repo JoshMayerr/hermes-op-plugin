@@ -1,0 +1,51 @@
+manifest_version: 1
+name: op
+label: OP
+kind: platform
+version: 0.1.0
+description: >
+  OP SMS gateway adapter for Hermes Agent. Uses OP phone numbers as a Hermes
+  SMS channel for inbound chat, replies, cron notifications, and simple alerts.
+author: OP + Hermes Agent contributors
+requires_env:
+  - name: OP_API_KEY
+    description: "OP API bearer token (typically starts with op_live_)"
+    prompt: "OP API key"
+    password: true
+optional_env:
+  - name: OP_WEBHOOK_SECRET
+    description: "OP webhook HMAC secret; strongly recommended and required unless using loopback-only insecure dev mode"
+    prompt: "OP webhook secret"
+    password: true
+  - name: OP_WEBHOOK_HOST
+    description: "Local bind host for the webhook server (default: 127.0.0.1)"
+    prompt: "Webhook bind host"
+    password: false
+  - name: OP_WEBHOOK_PORT
+    description: "Local webhook port (default: 8645)"
+    prompt: "Webhook port"
+    password: false
+  - name: OP_WEBHOOK_PATH
+    description: "Webhook path to configure at OP (default: /webhooks/op)"
+    prompt: "Webhook path"
+    password: false
+  - name: OP_ALLOWED_NUMBERS
+    description: "Comma-separated E.164 phone numbers allowed to chat with Hermes"
+    prompt: "Allowed phone numbers"
+    password: false
+  - name: OP_ALLOW_ALL_NUMBERS
+    description: "Allow all inbound senders (not recommended; default false)"
+    prompt: "Allow all numbers? (true/false)"
+    password: false
+  - name: OP_HOME_CHANNEL
+    description: "Default E.164 phone number for cron/home delivery"
+    prompt: "Home phone number"
+    password: false
+  - name: OP_INSECURE_NO_SIGNATURE
+    description: "Disable webhook signature validation only for loopback local development"
+    prompt: "Disable webhook signatures? (dev only)"
+    password: false
+  - name: OP_POLL_INTERVAL_SECONDS
+    description: "Reserved for future inbound polling fallback"
+    prompt: "Polling interval seconds"
+    password: false

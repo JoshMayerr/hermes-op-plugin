@@ -1,0 +1,12 @@
+[project]
+name = "hermes-op-plugin"
+version = "0.1.0"
+description = "Hermes Agent platform plugin for OP SMS phone numbers"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = ["aiohttp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
