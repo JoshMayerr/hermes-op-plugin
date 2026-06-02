@@ -120,6 +120,17 @@ def test_op_invalid_port_does_not_crash_discovery_or_adapter_init(monkeypatch):
     assert adapter._webhook_port is None
 
 
+def test_op_plugin_platform_supports_session_key_value_access(monkeypatch):
+    monkeypatch.setenv("OP_API_KEY", "op_live_test")
+    monkeypatch.setenv("OP_WEBHOOK_SECRET", "secret")
+
+    adapter = OPAdapter(PlatformConfig())
+    source = adapter.build_source(chat_id="+14155551234", user_id="+14155551234")
+
+    assert source.platform == "op"
+    assert getattr(source.platform, "value") == "op"
+
+
 def test_op_validate_config_accepts_valid_signature_config(monkeypatch):
     monkeypatch.setenv("OP_API_KEY", "op_live_test")
     monkeypatch.setenv("OP_WEBHOOK_SECRET", "secret")

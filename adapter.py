@@ -44,6 +44,20 @@ DEDUP_TTL_SECONDS = 10 * 60
 DEDUP_MAX_ENTRIES = 2048
 
 
+class _PluginPlatformName(str):
+    """String platform key with a .value attribute for Hermes session code.
+
+    Built-in adapters use the Platform enum. Plugin platforms are dynamic and
+    not enum members, but gateway session helpers still access
+    source.platform.value. This shim keeps the dynamic platform key while
+    satisfying that interface.
+    """
+
+    @property
+    def value(self) -> str:
+        return str(self)
+
+
 def _truthy(value: str | None) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
@@ -156,10 +170,10 @@ class OPAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_OP_SMS_LENGTH
 
     def __init__(self, config: PlatformConfig):
-        # Plugin platforms are not members of Hermes' built-in Platform enum.
-        # BasePlatformAdapter and gateway routing normalize either enum values
-        # or raw strings, so keep standalone/plugin platforms as their string key.
-        super().__init__(config, "op")  # type: ignore[arg-type]
+        # BasePlatformAdapter accepts Hermes' built-in Platform enum, while
+        # session helpers read source.platform.value. Use a string-like shim so
+        # the dynamic plugin key keeps both behaviours.
+        super().__init__(config, _PluginPlatformName("op"))  # type: ignore[arg-type]
         self._api_key = os.getenv("OP_API_KEY", "").strip()
         self._webhook_secret = os.getenv("OP_WEBHOOK_SECRET", "").strip()
         self._webhook_host = os.getenv("OP_WEBHOOK_HOST", DEFAULT_WEBHOOK_HOST).strip() or DEFAULT_WEBHOOK_HOST
