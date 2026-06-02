@@ -7,12 +7,12 @@ description: >
   OP SMS gateway adapter for Hermes Agent. Uses OP phone numbers as a Hermes
   SMS channel for inbound chat, replies, cron notifications, and simple alerts.
 author: OP + Hermes Agent contributors
-requires_env:
+requires_env: []
+optional_env:
   - name: OP_API_KEY
-    description: "OP API bearer token (typically starts with op_live_)"
+    description: "OP API bearer token (typically starts with op_live_); `hermes op setup` can create this via OTP"
     prompt: "OP API key"
     password: true
-optional_env:
   - name: OP_WEBHOOK_SECRET
     description: "OP webhook HMAC secret; strongly recommended and required unless using loopback-only insecure dev mode"
     prompt: "OP webhook secret"

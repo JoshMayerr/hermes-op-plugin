@@ -7,7 +7,9 @@ This repo is a standalone Hermes plugin. It registers platform `op` so Hermes ca
 - receive inbound SMS from OP webhooks
 - reply over SMS with `POST https://api.op.inc/v1/messages`
 - use OP as a home/cron delivery target via `OP_HOME_CHANNEL`
-- load the setup/troubleshooting skill `op:op-sms`
+- run dashboardless OTP setup with `hermes op setup`
+- expose OP API tools (`op_send_sms`, `op_list_messages`, `op_get_message`, `op_get_number`)
+- load the setup/troubleshooting skills `op:op-sms` and `op:op-api`
 
 ## Install
 
@@ -29,6 +31,36 @@ Restart the gateway after install:
 
 ```bash
 hermes gateway restart
+```
+
+## Dashboardless setup
+
+OP supports signup/login by OTP, so the plugin can configure most of OP without opening the dashboard:
+
+```bash
+hermes op setup --phone +14155551234 --webhook-url https://<your-public-tunnel>/webhooks/op
+```
+
+The command will:
+
+1. call `POST /auth/start` for your phone number
+2. prompt for the OTP OP texts you
+3. call `POST /auth/verify`
+4. use the returned `bootstrap_key` or create an API key through `/console/api-keys`
+5. inspect your OP number through `/console/numbers/mine`
+6. create a webhook through `/console/webhooks` when `--webhook-url` is provided
+7. write the needed `OP_*` values to the Hermes `.env`
+
+Then restart Hermes/gateway:
+
+```bash
+hermes gateway restart
+```
+
+You can inspect saved values without revealing secrets:
+
+```bash
+hermes op status
 ```
 
 ## Configuration
@@ -112,15 +144,27 @@ curl http://localhost:8645/health
 - Inbound senders are rejected unless allowlisted or `OP_ALLOW_ALL_NUMBERS=true`.
 - SMS bodies are not logged at info level.
 
-## Plugin skill
+## OP API tools
 
-This plugin ships a read-only Hermes skill:
+When `OP_API_KEY` is set, the plugin registers toolset `op`:
+
+| Tool | Purpose |
+|---|---|
+| `op_send_sms` | Send a one-off SMS with optional idempotency key. |
+| `op_list_messages` | List inbound/outbound messages with pagination. |
+| `op_get_message` | Fetch a message and delivery status by id. |
+| `op_get_number` | Inspect the OP number attached to the API key. |
+
+## Plugin skills
+
+This plugin ships read-only Hermes skills:
 
 ```text
 /skill op:op-sms
+/skill op:op-api
 ```
 
-Use it for setup and troubleshooting guidance inside Hermes.
+Use them for setup, troubleshooting, and API/tool guidance inside Hermes.
 
 ## Local development
 

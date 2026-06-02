@@ -20,20 +20,16 @@ Load this skill when helping someone install, configure, test, or troubleshoot O
 
 ## Quick Setup
 
+Preferred dashboardless setup:
+
 1. Install the plugin:
    ```bash
    hermes plugins install owner/hermes-op-plugin --enable
    ```
 
-2. Add env vars to the Hermes `.env` file shown by `hermes config env-path`:
+2. Run OP setup. The command sends an OTP to your phone, asks for the code, creates/uses an OP API key, optionally registers a webhook, and writes Hermes `.env` values:
    ```bash
-   OP_API_KEY=op_live_...
-   OP_WEBHOOK_SECRET=...
-   OP_ALLOWED_NUMBERS=+14155551234
-   OP_HOME_CHANNEL=+14155551234
-   OP_WEBHOOK_HOST=127.0.0.1
-   OP_WEBHOOK_PORT=8645
-   OP_WEBHOOK_PATH=/webhooks/op
+   hermes op setup --phone +14155551234 --webhook-url https://<public-tunnel-host>/webhooks/op
    ```
 
 3. Restart or run the gateway:
@@ -43,17 +39,19 @@ Load this skill when helping someone install, configure, test, or troubleshoot O
    hermes gateway run
    ```
 
-4. Expose the local webhook server:
-   ```bash
-   cloudflared tunnel --url http://localhost:8645
-   ```
+4. Text the OP number from one of the numbers in `OP_ALLOWED_NUMBERS`.
 
-5. Configure OP's webhook URL:
-   ```text
-   https://<public-tunnel-host>/webhooks/op
-   ```
+Manual setup is still supported: add these env vars to the Hermes `.env` file shown by `hermes config env-path`:
 
-6. Text the OP number from one of the numbers in `OP_ALLOWED_NUMBERS`.
+```bash
+OP_API_KEY=***
+OP_WEBHOOK_SECRET=***
+OP_ALLOWED_NUMBERS=+14155551234
+OP_HOME_CHANNEL=+14155551234
+OP_WEBHOOK_HOST=127.0.0.1
+OP_WEBHOOK_PORT=8645
+OP_WEBHOOK_PATH=/webhooks/op
+```
 
 ## Security Defaults
 
