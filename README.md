@@ -13,18 +13,16 @@ This repo is a standalone Hermes plugin. It registers platform `op` so Hermes ca
 
 ## Install
 
-Once this repo is on GitHub:
+Install the plugin from GitHub:
 
 ```bash
-hermes plugins install <owner>/<repo> --enable
-# example:
-# hermes plugins install op-inc/hermes-op-plugin --enable
+hermes plugins install JoshMayerr/hermes-op-plugin --enable
 ```
 
-Or install from a full Git URL:
+Or install from the full Git URL:
 
 ```bash
-hermes plugins install https://github.com/<owner>/<repo>.git --enable
+hermes plugins install https://github.com/JoshMayerr/hermes-op-plugin.git --enable
 ```
 
 Restart the gateway after install:
