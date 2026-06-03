@@ -1,5 +1,7 @@
 # Hermes OP SMS Plugin
 
+![Hermes OP SMS Plugin cover image](assets/op-hermes-banner.png)
+
 Give your Hermes Agent a real phone number.
 
 This plugin connects [OP](https://op.inc/) phone numbers to [Hermes Agent](https://hermes-agent.nousresearch.com/), so you can text your agent from any phone and let Hermes reply over SMS.
