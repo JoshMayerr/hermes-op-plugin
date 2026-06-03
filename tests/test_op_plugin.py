@@ -367,7 +367,129 @@ async def test_op_client_v1_number_messages_and_idempotency_key():
     assert session.calls[0][1] == "https://api.test/v1/number"
     assert session.calls[1][1] == "https://api.test/v1/messages"
     assert session.calls[1][2]["params"] == {"direction": "inbound", "cursor": "cur", "limit": 20}
-    assert session.calls[2][2]["json"] == {"to": "+14155551234", "body": "hello", "idempotency_key": "idem_1"}
+    assert session.calls[2][2]["json"]["body"] == "hello"
+    assert session.calls[2][2]["json"]["idempotency_key"] == "idem_1"
+
+
+@pytest.mark.asyncio
+async def test_op_client_console_management_endpoints():
+    session = _FakeSession()
+    session.queue(200, {"data": [{"id": "num_1"}]})
+    session.queue(200, {"data": [{"id": "num_2"}]})
+    session.queue(200, {"data": [{"id": "key_1"}]})
+    session.queue(200, {"data": [{"id": "wh_1"}]})
+    session.queue(200, {"id": "num_2", "leased": True})
+    session.queue(200, {"id": "num_2", "released": True})
+    session.queue(200, {"id": "wh_1", "disabled": False})
+    session.queue(200, {"ok": True})
+    session.queue(200, {"id": "wh_1", "secret": "whsec_2"})
+    session.queue(204, {})
+    session.queue(204, {})
+    client = OPClient("op_live_test", session, api_base="https://api.test")
+
+    assert await client.list_my_numbers() == (200, {"data": [{"id": "num_1"}]})
+    assert await client.list_available_numbers() == (200, {"data": [{"id": "num_2"}]})
+    assert await client.list_api_keys(number_id="num_1") == (200, {"data": [{"id": "key_1"}]})
+    assert await client.list_webhooks(number_id="num_1") == (200, {"data": [{"id": "wh_1"}]})
+    assert await client.lease_number("num_2") == (200, {"id": "num_2", "leased": True})
+    assert await client.release_number("num_2") == (200, {"id": "num_2", "released": True})
+    assert await client.update_webhook("wh_1", url="https://example.com/webhooks/op", events=["message.received"], disabled=False) == (
+        200,
+        {"id": "wh_1", "disabled": False},
+    )
+    assert await client.test_webhook("wh_1") == (200, {"ok": True})
+    assert await client.rotate_webhook_secret("wh_1") == (200, {"id": "wh_1", "secret": "whsec_2"})
+    assert await client.delete_webhook("wh_1") == (204, {})
+    assert await client.revoke_api_key("key_1") == (204, {})
+
+    assert session.calls[0][1] == "https://api.test/console/numbers/mine"
+    assert session.calls[1][1] == "https://api.test/console/numbers/available"
+    assert session.calls[2][1] == "https://api.test/console/api-keys"
+    assert session.calls[2][2]["params"] == {"number_id": "num_1"}
+    assert session.calls[3][1] == "https://api.test/console/webhooks"
+    assert session.calls[3][2]["params"] == {"number_id": "num_1"}
+    assert session.calls[4][1] == "https://api.test/console/numbers/num_2/lease"
+    assert session.calls[5][1] == "https://api.test/console/numbers/num_2/release"
+    assert session.calls[6][1] == "https://api.test/console/webhooks/wh_1"
+    assert session.calls[6][2]["json"] == {"url": "https://example.com/webhooks/op", "events": ["message.received"], "disabled": False}
+    assert session.calls[7][1] == "https://api.test/console/webhooks/wh_1/test"
+    assert session.calls[8][1] == "https://api.test/console/webhooks/wh_1/rotate-secret"
+    assert session.calls[9][1] == "https://api.test/console/webhooks/wh_1"
+    assert session.calls[10][1] == "https://api.test/console/api-keys/key_1"
+
+
+@pytest.mark.asyncio
+async def test_op_management_tools_validate_destructive_confirmation(monkeypatch):
+    from hermes_plugins.op import op_tools
+
+    async def fail_if_called(operation):
+        raise AssertionError("OP client should not be called without confirm=true")
+
+    monkeypatch.setattr(op_tools, "_with_client", fail_if_called)
+
+    release = json.loads(await op_tools.op_release_number({"number_id": "num_1"}))
+    revoke = json.loads(await op_tools.op_revoke_api_key({"key_id": "key_1"}))
+    delete = json.loads(await op_tools.op_delete_webhook({"webhook_id": "wh_1"}))
+    rotate = json.loads(await op_tools.op_rotate_webhook_secret({"webhook_id": "wh_1"}))
+
+    assert release["success"] is False and "confirm=true" in release["error"]
+    assert revoke["success"] is False and "confirm=true" in revoke["error"]
+    assert delete["success"] is False and "confirm=true" in delete["error"]
+    assert rotate["success"] is False and "confirm=true" in rotate["error"]
+
+
+@pytest.mark.asyncio
+async def test_op_management_tools_call_client_methods(monkeypatch):
+    from hermes_plugins.op import op_tools
+
+    calls = []
+
+    class DummyClient:
+        async def list_my_numbers(self):
+            calls.append(("list_my_numbers",))
+            return 200, {"data": []}
+
+        async def list_available_numbers(self):
+            calls.append(("list_available_numbers",))
+            return 200, {"data": []}
+
+        async def create_api_key(self, number_id, *, name="Hermes"):
+            calls.append(("create_api_key", number_id, name))
+            return 201, {"id": "key_1"}
+
+        async def create_webhook(self, number_id, url, *, events=None):
+            calls.append(("create_webhook", number_id, url, events))
+            return 201, {"id": "wh_1"}
+
+        async def update_webhook(self, webhook_id, *, url=None, events=None, disabled=None):
+            calls.append(("update_webhook", webhook_id, url, events, disabled))
+            return 200, {"id": webhook_id}
+
+        async def release_number(self, number_id):
+            calls.append(("release_number", number_id))
+            return 200, {"id": number_id}
+
+    async def with_dummy(operation):
+        status, payload = await operation(DummyClient())
+        return {"success": True, "status": status, "data": payload}
+
+    monkeypatch.setattr(op_tools, "_with_client", with_dummy)
+
+    assert json.loads(await op_tools.op_list_my_numbers({}))["success"] is True
+    assert json.loads(await op_tools.op_list_available_numbers({}))["success"] is True
+    assert json.loads(await op_tools.op_create_api_key({"number_id": "num_1", "name": "Agent"}))["success"] is True
+    assert json.loads(await op_tools.op_create_webhook({"number_id": "num_1", "url": "https://example.com/webhooks/op", "events": ["message.received"]}))["success"] is True
+    assert json.loads(await op_tools.op_update_webhook({"webhook_id": "wh_1", "disabled": "false"}))["success"] is True
+    assert json.loads(await op_tools.op_release_number({"number_id": "num_1", "confirm": True}))["success"] is True
+
+    assert calls == [
+        ("list_my_numbers",),
+        ("list_available_numbers",),
+        ("create_api_key", "num_1", "Agent"),
+        ("create_webhook", "num_1", "https://example.com/webhooks/op", ["message.received"]),
+        ("update_webhook", "wh_1", None, None, False),
+        ("release_number", "num_1"),
+    ]
 
 
 def test_op_setup_env_updates_prefers_bootstrap_key_and_webhook_secret():
@@ -443,5 +565,24 @@ def test_register_registers_op_tools_cli_and_all_plugin_skills(monkeypatch):
     register(Ctx())
     assert calls["platform"]["name"] == "op"
     assert {skill[0] for skill in calls["skills"]} >= {"op-sms", "op-api"}
-    assert {tool["name"] for tool in calls["tools"]} >= {"op_send_sms", "op_list_messages", "op_get_number"}
+    tool_names = {tool["name"] for tool in calls["tools"]}
+    assert tool_names >= {
+        "op_send_sms",
+        "op_list_messages",
+        "op_get_message",
+        "op_get_number",
+        "op_list_my_numbers",
+        "op_list_available_numbers",
+        "op_lease_number",
+        "op_release_number",
+        "op_list_api_keys",
+        "op_create_api_key",
+        "op_revoke_api_key",
+        "op_list_webhooks",
+        "op_create_webhook",
+        "op_update_webhook",
+        "op_test_webhook",
+        "op_rotate_webhook_secret",
+        "op_delete_webhook",
+    }
     assert calls["cli"]["name"] == "op"
