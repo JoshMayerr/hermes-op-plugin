@@ -1,6 +1,55 @@
 # Hermes OP SMS Plugin
 
-Use an [OP](https://op.inc/) phone number as a Hermes Agent messaging channel.
+Give your Hermes Agent a real phone number.
+
+This plugin connects [OP](https://op.inc/) phone numbers to [Hermes Agent](https://hermes-agent.nousresearch.com/), so you can text your agent from any phone and let Hermes reply over SMS.
+
+OP is built to be the simplest free-tier path for agents to start sending and receiving real texts. With this plugin, you can go from a fresh Hermes install to texting your agent in a few commands.
+
+No dashboard required: install the plugin, run `hermes op setup`, enter the OTP OP texts you, and the plugin configures API keys, webhooks, and Hermes env vars for you.
+
+## Quickstart
+
+```bash
+hermes plugins install JoshMayerr/hermes-op-plugin --enable
+
+cloudflared tunnel --url http://localhost:8645
+
+hermes op setup \
+  --phone +14155551234 \
+  --webhook-url https://your-tunnel.trycloudflare.com/webhooks/op
+
+hermes gateway restart
+```
+
+Then text your OP number. Hermes should receive the SMS through OP and reply from the same number.
+
+## What this unlocks
+
+- Text Hermes from any phone
+- Use SMS as your Hermes home channel
+- Get cron/job alerts over SMS
+- Let Hermes send one-off SMS messages with OP tools
+- Manage OP numbers, API keys, and webhooks from inside Hermes
+- Set up OP from the terminal with OTP login — no dashboard required
+
+## Example
+
+```text
+You → your OP number:
+remind me tomorrow at 9 to check webhook logs
+
+Hermes → you:
+Done — I’ll text you tomorrow at 9:00 AM.
+```
+
+## Requirements
+
+- Hermes Agent installed
+- An OP account / phone number
+- `cloudflared` or another public HTTPS tunnel for local webhook delivery
+
+## What gets installed
 
 This repo is a standalone Hermes plugin. It registers platform `op` so Hermes can:
 
@@ -236,6 +285,6 @@ hermes plugins install file://$PWD --enable --force
 hermes gateway restart
 ```
 
-## Current status
+## Status
 
-Unit tests cover signature verification, payload extraction, dedupe, config validation, allowlist behavior, logging safety, and plugin registration. A real OP end-to-end webhook/send test is still recommended before broad use.
+`v0.1.0` is a beta release. Unit tests cover signature verification, payload extraction, dedupe, config validation, allowlist behavior, logging safety, and plugin registration. The GitHub install path has been smoke-tested with a real OP setup.
