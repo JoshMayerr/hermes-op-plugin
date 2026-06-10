@@ -521,7 +521,7 @@ def test_op_setup_env_updates_prefers_bootstrap_key_and_webhook_secret():
 
 
 def test_op_update_env_file_preserves_unrelated_values_and_redacts_summary(tmp_path):
-    from hermes_plugins.op.op_cli import update_env_file, redact_secret
+    from hermes_plugins.op.op_cli import read_env_file, resolve_env_value, update_env_file, redact_secret
 
     env_path = tmp_path / ".env"
     env_path.write_text("EXISTING=1\nOP_API_KEY=old\n", encoding="utf-8")
@@ -529,6 +529,60 @@ def test_op_update_env_file_preserves_unrelated_values_and_redacts_summary(tmp_p
 
     assert env_path.read_text(encoding="utf-8") == "EXISTING=1\nOP_API_KEY=op_live_new\nOP_WEBHOOK_PORT=8645\n"
     assert redact_secret("op_live_new") == "op_l…_new"
+    assert read_env_file(env_path)["OP_API_KEY"] == "op_live_new"
+    assert resolve_env_value("OP_API_KEY", env_path=env_path) == "op_live_new"
+
+
+@pytest.mark.asyncio
+async def test_op_cli_send_uses_env_file_api_key(monkeypatch, tmp_path):
+    from hermes_plugins.op import op_cli
+
+    env_path = tmp_path / ".env"
+    env_path.write_text("OP_API_KEY=op_live_file\n", encoding="utf-8")
+    calls = []
+    printed = []
+
+    class DummyClient:
+        def __init__(self, api_key, session, api_base="https://api.op.inc"):
+            calls.append(("init", api_key, api_base))
+
+        async def send_message(self, to, body, *, idempotency_key=None):
+            calls.append(("send", to, body, idempotency_key))
+            return 202, {"id": "msg_1"}
+
+    class DummySession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class DummyAiohttp:
+        class ClientTimeout:
+            def __init__(self, total):
+                self.total = total
+
+        @staticmethod
+        def ClientSession(timeout=None):
+            return DummySession()
+
+    monkeypatch.setitem(sys.modules, "aiohttp", DummyAiohttp)
+    monkeypatch.setattr(op_cli, "OPClient", DummyClient)
+
+    result = await op_cli.run_send_async(
+        to="+14155551234",
+        body="hello",
+        env_path=env_path,
+        idempotency_key="idem_1",
+        print_fn=printed.append,
+    )
+
+    assert result["success"] is True
+    assert calls == [
+        ("init", "op_live_file", "https://api.op.inc"),
+        ("send", "+14155551234", "hello", "idem_1"),
+    ]
+    assert printed == ["Queued OP SMS to +14155551234 (msg_1)."]
 
 
 def test_op_cli_prompts_for_otp_after_auth_start_not_before(monkeypatch):

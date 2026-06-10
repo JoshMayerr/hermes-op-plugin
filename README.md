@@ -22,6 +22,10 @@ hermes op setup \
   --webhook-url https://your-tunnel.trycloudflare.com/webhooks/op
 
 hermes gateway restart
+
+hermes op send \
+  --to +14155559876 \
+  --body "hello from Hermes via OP"
 ```
 
 Then text your OP number. Hermes should receive the SMS through OP and reply from the same number.
@@ -31,6 +35,7 @@ Then text your OP number. Hermes should receive the SMS through OP and reply fro
 - Text Hermes from any phone
 - Use SMS as your Hermes home channel
 - Get cron/job alerts over SMS
+- Send one-off SMS messages from the terminal with `hermes op send`
 - Let Hermes send one-off SMS messages with OP tools
 - Manage OP numbers, API keys, and webhooks from inside Hermes
 - Set up OP from the terminal with OTP login — no dashboard required
@@ -154,6 +159,14 @@ You can inspect saved values without revealing secrets:
 ```bash
 hermes op status
 ```
+
+You can also send one-off SMS messages from the terminal:
+
+```bash
+hermes op send --to +14155559876 --body "hello from Hermes via OP"
+```
+
+`hermes op send` reads `OP_API_KEY` from the process environment or the Hermes `.env` file created by `hermes op setup`. Use `--api-key`, `--api-base`, `--env-path`, or `--idempotency-key` when you need to override those defaults.
 
 If you use a temporary tunnel URL, it changes whenever the tunnel restarts. Re-run `hermes op setup --webhook-url <new-url>/webhooks/op` or update the OP webhook whenever the public URL changes.
 

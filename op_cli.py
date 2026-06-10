@@ -143,6 +143,31 @@ def update_env_file(path: str | Path, updates: Mapping[str, str]) -> None:
     env_path.write_text("\n".join(output).rstrip("\n") + "\n", encoding="utf-8")
 
 
+def read_env_file(path: str | Path) -> dict[str, str]:
+    """Read simple KEY=value lines from an env file."""
+    env_path = Path(path).expanduser()
+    if not env_path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def resolve_env_value(key: str, *, env_path: str | Path | None = None, explicit: str | None = None) -> str:
+    """Resolve a CLI value from explicit arg, process env, then Hermes env file."""
+    if explicit:
+        return explicit.strip()
+    if os.getenv(key):
+        return os.environ[key].strip()
+    values = read_env_file(env_path or default_env_path())
+    return str(values.get(key, "")).strip()
+
+
 async def run_setup_async(
     *,
     phone: str,
@@ -224,6 +249,40 @@ async def run_setup_async(
         return {"success": True, "env_path": str(target), "updates": updates, "number": dict(number_payload)}
 
 
+async def run_send_async(
+    *,
+    to: str,
+    body: str,
+    api_key: str | None = None,
+    api_base: str | None = None,
+    env_path: str | Path | None = None,
+    idempotency_key: str | None = None,
+    print_fn: Callable[[str], None] = print,
+) -> dict[str, Any]:
+    """Send one OP SMS from the CLI."""
+    import aiohttp
+
+    recipient = normalize_phone(to)
+    text = str(body or "").strip()
+    if not text:
+        raise ValueError("Message body is required. Use --body or provide a message argument.")
+    key = resolve_env_value("OP_API_KEY", env_path=env_path, explicit=api_key)
+    if not key:
+        raise ValueError("OP_API_KEY is not set. Run `hermes op setup` or pass --api-key.")
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        client = OPClient(key, session, api_base=api_base or os.getenv("OP_API_BASE", "https://api.op.inc"))
+        status, payload = await client.send_message(recipient, text, idempotency_key=idempotency_key)
+        if status >= 400:
+            raise RuntimeError(format_op_error(status, payload))
+        message_id = ""
+        if isinstance(payload, Mapping):
+            message_id = str(payload.get("id") or payload.get("message_id") or "")
+        suffix = f" ({message_id})" if message_id else ""
+        print_fn(f"Queued OP SMS to {recipient}{suffix}.")
+        return {"success": True, "status": status, "payload": payload}
+
+
 def setup_parser(parser: argparse.ArgumentParser) -> None:
     sub = parser.add_subparsers(dest="op_command")
     setup = sub.add_parser("setup", help="Dashboardless OP setup via OTP")
@@ -242,6 +301,16 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     status = sub.add_parser("status", help="Show OP env/config status")
     status.add_argument("--env-path", help="Hermes .env path; defaults to HERMES_HOME/.env")
     status.set_defaults(func=handle_cli)
+
+    send = sub.add_parser("send", help="Send one SMS through OP")
+    send.add_argument("--to", required=True, help="Recipient phone number in E.164 format")
+    send.add_argument("--body", "--message", dest="body", help="SMS body")
+    send.add_argument("--api-key", help="OP API key; defaults to OP_API_KEY or Hermes env file")
+    send.add_argument("--api-base", default=None, help="OP API base URL; defaults to OP_API_BASE or https://api.op.inc")
+    send.add_argument("--env-path", help="Hermes .env path; defaults to HERMES_HOME/.env")
+    send.add_argument("--idempotency-key", help="Optional idempotency key for safe retries")
+    send.add_argument("message", nargs="*", help="SMS body when --body is omitted")
+    send.set_defaults(func=handle_cli)
 
 
 def _prompt_missing(args: argparse.Namespace) -> None:
@@ -284,7 +353,20 @@ def handle_cli(args: argparse.Namespace) -> int:
             value = redact_secret(values[key]) if "KEY" in key or "SECRET" in key else values[key]
             print(f"{key}={value}")
         return 0
-    print("Run `hermes op setup` or `hermes op status`.")
+    if command == "send":
+        body = getattr(args, "body", None) or " ".join(getattr(args, "message", []) or [])
+        asyncio.run(
+            run_send_async(
+                to=args.to,
+                body=body,
+                api_key=args.api_key,
+                api_base=args.api_base,
+                env_path=args.env_path,
+                idempotency_key=args.idempotency_key,
+            )
+        )
+        return 0
+    print("Run `hermes op setup`, `hermes op status`, or `hermes op send`.")
     return 2
 
 
